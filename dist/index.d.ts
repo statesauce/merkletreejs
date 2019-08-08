@@ -1,4 +1,4 @@
-interface Options {
+interface CreateOptions {
     /** If set to `true`, an odd node will be duplicated and combined to make a pair to generate the layer hash. */
     duplicateOdd: boolean;
     /** If set to `true`, the leaves will hashed using the set hashing algorithms. */
@@ -11,6 +11,13 @@ interface Options {
     sortPairs: boolean;
     /** If set to `true`, the leaves and hashing pairs will be sorted. */
     sort: boolean;
+}
+interface RecreateOptions {
+    /** If set to `true`, an odd node will be duplicated and combined to make a pair to generate the layer hash. */
+    /** If set to `true`, constructs the Merkle Tree using the [Bitcoin Merkle Tree implementation](http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html). Enable it when you need to replicate Bitcoin constructed Merkle Trees. In Bitcoin Merkle Trees, single nodes are combined with themselves, and each output hash is hashed again. */
+    isBitcoinTree: boolean;
+    /** If set to `true`, the leaves will be sorted. */
+    sortPairs: boolean;
 }
 /**
  * Class reprensenting a Merkle Tree
@@ -48,7 +55,18 @@ export declare class MerkleTree {
      *const tree = new MerkleTree(leaves, sha256)
      *```
      */
-    constructor(leaves: any, hashAlgorithm: any, options?: Options);
+    constructor({ create, recreate }: {
+        create?: {
+            leaves: any;
+            hashAlgorithm: any;
+            options?: CreateOptions;
+        };
+        recreate?: {
+            leaves: any;
+            layers: any;
+            options?: RecreateOptions;
+        };
+    });
     createHashes(nodes: any): void;
     /**
      * getLeaves
