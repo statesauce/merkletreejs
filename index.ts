@@ -1,12 +1,15 @@
 import * as reverse from "buffer-reverse";
 import * as CryptoJS from "crypto-js";
 import * as treeify from "treeify";
+const _ = require("lodash");
 
 interface CreateOptions {
   /** If set to `true`, an odd node will be duplicated and combined to make a pair to generate the layer hash. */
   duplicateOdd: boolean;
   /** If set to `true`, the leaves will hashed using the set hashing algorithms. */
   hashLeaves: boolean;
+  /** If set to true, the leaves will be reconstructed using the set leaf creation function */
+  createLeaves: (value: any) => any;
   /** If set to `true`, constructs the Merkle Tree using the [Bitcoin Merkle Tree implementation](http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html). Enable it when you need to replicate Bitcoin constructed Merkle Trees. In Bitcoin Merkle Trees, single nodes are combined with themselves, and each output hash is hashed again. */
   isBitcoinTree: boolean;
   /** If set to `true`, the leaves will be sorted. */
@@ -34,6 +37,7 @@ export class MerkleTree {
   duplicateOdd: boolean;
   hashAlgo: (value: any) => any;
   hashLeaves: boolean;
+  createLeaves: ((value: any) => any) | boolean;
   isBitcoinTree: boolean;
   leaves: any[];
   layers: any[];
@@ -86,7 +90,9 @@ export class MerkleTree {
       this.hashLeaves = !!create.options.hashLeaves;
       this.sortLeaves = !!create.options.sortLeaves;
       this.sortPairs = !!create.options.sortPairs;
-
+      this.createLeaves = this.isBitcoinTree
+        ? false
+        : create.options.createLeaves;
       this.sort = !!create.options.sort;
       if (this.sort) {
         this.sortLeaves = true;
@@ -98,10 +104,17 @@ export class MerkleTree {
       if (this.hashLeaves) {
         create.leaves = create.leaves.map(this.hashAlgo);
       }
+      if (this.createLeaves) {
+        create.leaves = create.leaves.map(this.createLeaves);
+      }
 
-      this.leaves = create.leaves.map(bufferify);
+      this.leaves = create.leaves.map(this.bufferify());
       if (this.sortLeaves) {
-        this.leaves = this.leaves.sort(Buffer.compare);
+        this.leaves = this.leaves.sort((x, y) =>
+          this.createLeaves
+            ? Buffer.compare(x.value, y.value)
+            : Buffer.compare(x, y)
+        );
       }
 
       this.layers = [this.leaves];
@@ -121,7 +134,6 @@ export class MerkleTree {
       const layerIndex = this.layers.length;
 
       this.layers.push([]);
-
       for (let i = 0; i < nodes.length; i += 2) {
         if (i + 1 === nodes.length) {
           if (nodes.length % 2 === 1) {
@@ -145,23 +157,32 @@ export class MerkleTree {
             }
           }
         }
-
-        const left = nodes[i];
-        const right = i + 1 == nodes.length ? left : nodes[i + 1];
+        let left = nodes[i];
+        let right = i + 1 == nodes.length ? left : nodes[i + 1];
         let data = null;
         let combined = null;
-
         if (this.isBitcoinTree) {
           combined = [reverse(left), reverse(right)];
         } else {
-          combined = [left, right];
+          combined = this.createLeaves
+            ? [
+                Buffer.isBuffer(left) ? left : left.value,
+                Buffer.isBuffer(right) ? right : right.value
+              ]
+            : [left, right];
         }
 
         if (this.sortPairs) {
+          // this.createLeaves && layerIndex === 1
+          //   ? combined.sort((x, y) => Buffer.compare(x.value, y.value))
+          //   :
           combined.sort(Buffer.compare);
         }
 
         data = Buffer.concat(combined);
+        // this.createLeaves && layerIndex == 1
+        //   ? Buffer.concat(combined.map(x => x.value))
+        //   :
 
         let hash = this.hashAlgo(data);
 
@@ -249,7 +270,7 @@ export class MerkleTree {
       index = -1;
 
       for (let i = 0; i < this.leaves.length; i++) {
-        if (Buffer.compare(leaf, this.leaves[i]) === 0) {
+        if (Buffer.compare(leaf, this.leaves[i].value) === 0) {
           index = i;
         }
       }
@@ -290,7 +311,10 @@ export class MerkleTree {
         if (pairIndex < layer.length) {
           proof.push({
             position: isRightNode ? "left" : "right",
-            data: layer[pairIndex]
+            data:
+              this.createLeaves && i === 0
+                ? layer[pairIndex].value
+                : layer[pairIndex]
           });
         }
 
@@ -373,23 +397,39 @@ export class MerkleTree {
 
     return Buffer.compare(hash, root) === 0;
   }
-
-  // TODO: documentation
   getLayersAsObject() {
-    const layers = this.getLayers().map(x => x.map(x => x.toString("hex")));
+    const _layers = _.cloneDeep(this.getLayers());
+    const layers = [
+      _layers.shift().map(x => {
+        return { ...x, value: "0x" + x.value.toString("hex") };
+      })
+    ];
+    layers.push(..._layers.map(x => x.map(x => "0x" + x.toString("hex"))));
     const objs = [];
     for (let i = 0; i < layers.length; i++) {
       const arr = [];
       for (let j = 0; j < layers[i].length; j++) {
-        const obj = { [layers[i][j]]: null };
+        const el = layers[i][j];
+        const obj = {};
+        if (i === 0 && this.createLeaves) {
+          obj[el.value] = el;
+          delete obj[el.value].value;
+        } else {
+          obj[layers[i][j]] = null;
+        }
+        console.log(obj);
         if (objs.length) {
           obj[layers[i][j]] = {};
           const a = objs.shift();
           const akey = Object.keys(a)[0];
+          console.log("a: ");
+          console.dir(a);
           obj[layers[i][j]][akey] = a[akey];
           if (objs.length) {
             const b = objs.shift();
             const bkey = Object.keys(b)[0];
+            //console.log("b: ");
+            //console.dir(b);
             obj[layers[i][j]][bkey] = b[bkey];
           }
         }
@@ -420,8 +460,16 @@ export class MerkleTree {
   }
 
   // TODO: documentation
-  static bufferify(x) {
-    return bufferify(x);
+  bufferify() {
+    if (this.createLeaves) {
+      return function(x) {
+        return { ...x, value: bufferify(x.value) };
+      };
+    } else {
+      return function(x) {
+        return bufferify(x);
+      };
+    }
   }
 
   // TODO: documentation

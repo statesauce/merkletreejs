@@ -3,6 +3,8 @@ interface CreateOptions {
     duplicateOdd: boolean;
     /** If set to `true`, the leaves will hashed using the set hashing algorithms. */
     hashLeaves: boolean;
+    /** If set to true, the leaves will be reconstructed using the set leaf creation function */
+    createLeaves: (value: any) => any;
     /** If set to `true`, constructs the Merkle Tree using the [Bitcoin Merkle Tree implementation](http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html). Enable it when you need to replicate Bitcoin constructed Merkle Trees. In Bitcoin Merkle Trees, single nodes are combined with themselves, and each output hash is hashed again. */
     isBitcoinTree: boolean;
     /** If set to `true`, the leaves will be sorted. */
@@ -27,6 +29,7 @@ export declare class MerkleTree {
     duplicateOdd: boolean;
     hashAlgo: (value: any) => any;
     hashLeaves: boolean;
+    createLeaves: ((value: any) => any) | boolean;
     isBitcoinTree: boolean;
     leaves: any[];
     layers: any[];
@@ -142,7 +145,7 @@ export declare class MerkleTree {
     print(): void;
     toTreeString(): any;
     toString(): any;
-    static bufferify(x: any): any;
+    bufferify(): (x: any) => any;
     static print(tree: any): void;
 }
 export default MerkleTree;

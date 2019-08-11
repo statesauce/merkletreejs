@@ -1,8 +1,20 @@
 "use strict";
-exports.__esModule = true;
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 var reverse = require("buffer-reverse");
 var CryptoJS = require("crypto-js");
 var treeify = require("treeify");
+var _ = require("lodash");
 /**
  * Class reprensenting a Merkle Tree
  * @namespace MerkleTree
@@ -31,6 +43,7 @@ var MerkleTree = /** @class */ (function () {
      *```
      */
     function MerkleTree(_a) {
+        var _this = this;
         var create = _a.create, recreate = _a.recreate;
         if (!!create) {
             if (!create.options) {
@@ -40,6 +53,9 @@ var MerkleTree = /** @class */ (function () {
             this.hashLeaves = !!create.options.hashLeaves;
             this.sortLeaves = !!create.options.sortLeaves;
             this.sortPairs = !!create.options.sortPairs;
+            this.createLeaves = this.isBitcoinTree
+                ? false
+                : create.options.createLeaves;
             this.sort = !!create.options.sort;
             if (this.sort) {
                 this.sortLeaves = true;
@@ -50,9 +66,16 @@ var MerkleTree = /** @class */ (function () {
             if (this.hashLeaves) {
                 create.leaves = create.leaves.map(this.hashAlgo);
             }
-            this.leaves = create.leaves.map(bufferify);
+            if (this.createLeaves) {
+                create.leaves = create.leaves.map(this.createLeaves);
+            }
+            this.leaves = create.leaves.map(this.bufferify());
             if (this.sortLeaves) {
-                this.leaves = this.leaves.sort(Buffer.compare);
+                this.leaves = this.leaves.sort(function (x, y) {
+                    return _this.createLeaves
+                        ? Buffer.compare(x.value, y.value)
+                        : Buffer.compare(x, y);
+                });
             }
             this.layers = [this.leaves];
             this.createHashes(this.leaves);
@@ -100,12 +123,23 @@ var MerkleTree = /** @class */ (function () {
                     combined = [reverse(left), reverse(right)];
                 }
                 else {
-                    combined = [left, right];
+                    combined = this.createLeaves
+                        ? [
+                            Buffer.isBuffer(left) ? left : left.value,
+                            Buffer.isBuffer(right) ? right : right.value
+                        ]
+                        : [left, right];
                 }
                 if (this.sortPairs) {
+                    // this.createLeaves && layerIndex === 1
+                    //   ? combined.sort((x, y) => Buffer.compare(x.value, y.value))
+                    //   :
                     combined.sort(Buffer.compare);
                 }
                 data = Buffer.concat(combined);
+                // this.createLeaves && layerIndex == 1
+                //   ? Buffer.concat(combined.map(x => x.value))
+                //   :
                 var hash = this.hashAlgo(data);
                 // double hash if bitcoin tree
                 if (this.isBitcoinTree) {
@@ -182,7 +216,7 @@ var MerkleTree = /** @class */ (function () {
         if (typeof index !== "number") {
             index = -1;
             for (var i = 0; i < this.leaves.length; i++) {
-                if (Buffer.compare(leaf, this.leaves[i]) === 0) {
+                if (Buffer.compare(leaf, this.leaves[i].value) === 0) {
                     index = i;
                 }
             }
@@ -216,7 +250,9 @@ var MerkleTree = /** @class */ (function () {
                 if (pairIndex < layer.length) {
                     proof.push({
                         position: isRightNode ? "left" : "right",
-                        data: layer[pairIndex]
+                        data: this.createLeaves && i === 0
+                            ? layer[pairIndex].value
+                            : layer[pairIndex]
                     });
                 }
                 // set index to parent index
@@ -291,23 +327,40 @@ var MerkleTree = /** @class */ (function () {
         }
         return Buffer.compare(hash, root) === 0;
     };
-    // TODO: documentation
     MerkleTree.prototype.getLayersAsObject = function () {
-        var _a;
-        var layers = this.getLayers().map(function (x) { return x.map(function (x) { return x.toString("hex"); }); });
+        var _layers = _.cloneDeep(this.getLayers());
+        var layers = [
+            _layers.shift().map(function (x) {
+                return __assign({}, x, { value: "0x" + x.value.toString("hex") });
+            })
+        ];
+        layers.push.apply(layers, _layers.map(function (x) { return x.map(function (x) { return "0x" + x.toString("hex"); }); }));
         var objs = [];
         for (var i = 0; i < layers.length; i++) {
             var arr = [];
             for (var j = 0; j < layers[i].length; j++) {
-                var obj = (_a = {}, _a[layers[i][j]] = null, _a);
+                var el = layers[i][j];
+                var obj = {};
+                if (i === 0 && this.createLeaves) {
+                    obj[el.value] = el;
+                    delete obj[el.value].value;
+                }
+                else {
+                    obj[layers[i][j]] = null;
+                }
+                console.log(obj);
                 if (objs.length) {
                     obj[layers[i][j]] = {};
                     var a = objs.shift();
                     var akey = Object.keys(a)[0];
+                    console.log("a: ");
+                    console.dir(a);
                     obj[layers[i][j]][akey] = a[akey];
                     if (objs.length) {
                         var b = objs.shift();
                         var bkey = Object.keys(b)[0];
+                        //console.log("b: ");
+                        //console.dir(b);
                         obj[layers[i][j]][bkey] = b[bkey];
                     }
                 }
@@ -331,8 +384,17 @@ var MerkleTree = /** @class */ (function () {
         return this.toTreeString();
     };
     // TODO: documentation
-    MerkleTree.bufferify = function (x) {
-        return bufferify(x);
+    MerkleTree.prototype.bufferify = function () {
+        if (this.createLeaves) {
+            return function (x) {
+                return __assign({}, x, { value: bufferify(x.value) });
+            };
+        }
+        else {
+            return function (x) {
+                return bufferify(x);
+            };
+        }
     };
     // TODO: documentation
     MerkleTree.print = function (tree) {
@@ -375,4 +437,4 @@ function bufferifyFn(f) {
 function isHexStr(v) {
     return typeof v === "string" && /^(0x)?[0-9A-Fa-f]*$/.test(v);
 }
-exports["default"] = MerkleTree;
+exports.default = MerkleTree;
