@@ -346,22 +346,17 @@ var MerkleTree = /** @class */ (function () {
                     delete obj[el.value].value;
                 }
                 else {
-                    obj[layers[i][j]] = null;
+                    obj[el] = null;
                 }
-                console.log(obj);
                 if (objs.length) {
-                    obj[layers[i][j]] = {};
+                    obj[el] = {};
                     var a = objs.shift();
                     var akey = Object.keys(a)[0];
-                    console.log("a: ");
-                    console.dir(a);
-                    obj[layers[i][j]][akey] = a[akey];
+                    obj[el][akey] = a[akey];
                     if (objs.length) {
                         var b = objs.shift();
                         var bkey = Object.keys(b)[0];
-                        //console.log("b: ");
-                        //console.dir(b);
-                        obj[layers[i][j]][bkey] = b[bkey];
+                        obj[el][bkey] = b[bkey];
                     }
                 }
                 arr.push(obj);
