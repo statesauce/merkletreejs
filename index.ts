@@ -76,6 +76,7 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
   public i: number = 0;
   public j: number = 0;
   private done: boolean;
+  private curIsLeaf: boolean;
 
   constructor(
     leaves: Leaf<Buffer, T>[],
@@ -92,7 +93,7 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
   }
 
   public next(): IteratorResult<DepthedNode<T> | null> {
-    const isLeaf = this.layers[this.i]
+    this.curIsLeaf = this.layers[this.i]
       ? this.j < this.layers[this.i].length
         ? this.layers[this.i][this.j].hasOwnProperty("value")
           ? false
@@ -114,9 +115,10 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
         done: false
       };
     }
+
     if (this.j % 2 === 0) {
       // left
-      if (!isLeaf) {
+      if (!this.curIsLeaf) {
         if (this.layers[this.i].length === 1) {
           if (this.done) {
             return { value: null, done: true };
@@ -288,65 +290,84 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
         }
       }
     } else {
-      // normal right
-      if (!isLeaf) {
-        this.node = this.layers[this.i][this.j];
-        let combined = [];
-        combined.push(
-          this.node.left.value
-            ? this.node.left.value
-            : this.node.left.leaf.data,
-          this.node.right.value
-            ? this.node.right.value
-            : this.node.right.leaf.data
-        );
-        if (this.options.sortPairs) {
-          combined.sort(Buffer.compare);
-        }
-        const data = Buffer.concat(combined);
-        let hash = this.hashAlgo(data);
-        this.node.value = hash;
-        const parent = this.layers[this.i + 1][
-          this.layers[this.i + 1].length - 1
-        ];
-        this.node.parent = parent;
-        parent.right = this.node;
-        if (this.j === this.layers[this.i].length - 1) {
-          this.j = 0;
-          this.i++;
-        } else {
-          this.j++;
-        }
-        return { value: { value: this.node, depth: this.i }, done: false };
-      } else {
-        const leaf =
-          this.i === 0 ? this.leaves[this.j] : this.layers[this.i][this.j];
-        if (isMerkleLeaf(leaf)) {
-          this.node = { leaf };
-          this.layers[this.i].push(this.node);
-        } else if (isMerkleNode(leaf)) {
-          this.node = leaf;
-        }
-        const parent = this.layers[this.i + 1][
-          this.layers[this.i + 1].length - 1
-        ];
-        this.node.parent = parent;
-        parent.right = this.node;
-        if (
-          this.i === 0
-            ? this.j === this.leaves.length - 1
-            : this.j === this.layers[this.i].length - 1
-        ) {
-          // end
-          this.j = 0;
-          this.i++;
-        } else {
-          this.j++;
-        }
-        return { value: { value: this.node, depth: this.i }, done: false };
-      }
+      this._createRight();
+      this._moveRight();
+      return { value: { value: this.node, depth: this.i }, done: false };
     }
   }
+
+  private _createRight() {
+    // normal right
+    if (!this.curIsLeaf) {
+      const node = this.layers[this.i][this.j];
+      let combined = [];
+      combined.push(
+        node.left.value ? node.left.value : node.left.leaf.data,
+        node.right.value ? node.right.value : node.right.leaf.data
+      );
+      if (this.options.sortPairs) {
+        combined.sort(Buffer.compare);
+      }
+      const data = Buffer.concat(combined);
+      let hash = this.hashAlgo(data);
+      node.value = hash;
+      const parent = this.layers[this.i + 1][
+        this.layers[this.i + 1].length - 1
+      ];
+      node.parent = parent;
+      parent.right = node;
+      return { value: { value: node, depth: this.i }, done: false };
+    } else {
+      const leaf =
+        this.i === 0 ? this.leaves[this.j] : this.layers[this.i][this.j];
+      let node: MerkleNode<T>;
+      if (isMerkleLeaf(leaf)) {
+        node = { leaf };
+        this.layers[this.i].push(node);
+      } else if (isMerkleNode(leaf)) {
+        node = leaf;
+      }
+      const parent = this.layers[this.i + 1][
+        this.layers[this.i + 1].length - 1
+      ];
+      node.parent = parent;
+      parent.right = node;
+    }
+  }
+
+  private _moveRight() {
+    this.curIsLeaf = this.layers[this.i]
+      ? this.j < this.layers[this.i].length
+        ? this.layers[this.i][this.j].hasOwnProperty("value")
+          ? false
+          : true
+        : true
+      : true;
+    if (!this.curIsLeaf) {
+      if (
+        this.i === 0
+          ? this.j === this.leaves.length - 1
+          : this.j === this.layers[this.i].length - 1
+      ) {
+        // end
+        this.j = 0;
+        this.i++;
+      } else {
+        this.j++;
+      }
+    } else {
+      if (this.j === this.layers[this.i].length - 1) {
+        this.j = 0;
+        this.i++;
+      } else {
+        this.j++;
+      }
+    }
+    this.node = this.layers[this.i][this.j];
+  }
+
+  private _createParent() {}
+
   [Symbol.iterator](): IterableIterator<DepthedNode<T>> {
     return this;
   }
@@ -433,7 +454,7 @@ export class MerkleTree {
       if (this.sortLeaves) {
         this.leaves = this.leaves.sort((x, y) =>
           this.createLeaves
-            ? Buffer.compare(x.value, y.value)
+            ? Buffer.compare(x.data, y.data)
             : Buffer.compare(x, y)
         );
       }
@@ -489,8 +510,8 @@ export class MerkleTree {
         } else {
           combined = this.createLeaves
             ? [
-                Buffer.isBuffer(left) ? left : left.value,
-                Buffer.isBuffer(right) ? right : right.value
+                Buffer.isBuffer(left) ? left : left.data,
+                Buffer.isBuffer(right) ? right : right.data
               ]
             : [left, right];
         }
@@ -617,7 +638,7 @@ export class MerkleTree {
       index = -1;
 
       for (let i = 0; i < this.leaves.length; i++) {
-        if (Buffer.compare(leaf, this.leaves[i].value) === 0) {
+        if (Buffer.compare(leaf, this.leaves[i].data) === 0) {
           index = i;
         }
       }
@@ -660,7 +681,7 @@ export class MerkleTree {
             position: isRightNode ? "left" : "right",
             data:
               this.createLeaves && i === 0
-                ? layer[pairIndex].value
+                ? layer[pairIndex].data
                 : layer[pairIndex]
           });
         }
@@ -748,7 +769,7 @@ export class MerkleTree {
     const _layers = _.cloneDeep(this.getLayers());
     const layers = [
       _layers.shift().map(x => {
-        return { ...x, value: "0x" + x.value.toString("hex") };
+        return { ...x, value: "0x" + x.data.toString("hex") };
       })
     ];
     layers.push(..._layers.map(x => x.map(x => "0x" + x.toString("hex"))));
@@ -759,8 +780,8 @@ export class MerkleTree {
         const el = layers[i][j];
         const obj = {};
         if (i === 0 && this.createLeaves) {
-          obj[el.value] = el;
-          delete obj[el.value].value;
+          obj[el.data] = el;
+          delete obj[el.data].data;
         } else {
           obj[el] = null;
         }
