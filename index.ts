@@ -78,9 +78,7 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
   constructor(
     leaves: Leaf<Buffer, T>[],
     hashAlgo: (value: any) => any,
-    options: CreateOptions,
-    stopi: number,
-    stopj: number
+    options: CreateOptions
   ) {
     this.leaves = leaves;
     this.options = options;
@@ -216,8 +214,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
     if (isMerkleLeaf(leaf)) {
       const node = { leaf };
       this.layers[this.i].push(node);
-    } else if (isMerkleNode(leaf)) {
-      const node = leaf;
     }
   }
 

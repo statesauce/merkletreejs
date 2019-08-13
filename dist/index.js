@@ -15,7 +15,7 @@ function isMerkleNode(object) {
         "parent" in object);
 }
 var MerkleFromLeaves = /** @class */ (function () {
-    function MerkleFromLeaves(leaves, hashAlgo, options, stopi, stopj) {
+    function MerkleFromLeaves(leaves, hashAlgo, options) {
         this.i = 0;
         this.j = 0;
         this.layers = [];
@@ -152,9 +152,6 @@ var MerkleFromLeaves = /** @class */ (function () {
         if (isMerkleLeaf(leaf)) {
             var node = { leaf: leaf };
             this.layers[this.i].push(node);
-        }
-        else if (isMerkleNode(leaf)) {
-            var node = leaf;
         }
     };
     MerkleFromLeaves.prototype._moveRight = function () {
