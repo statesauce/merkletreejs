@@ -15,14 +15,6 @@ interface CreateOptions {
     /** If set to `true`, the leaves and hashing pairs will be sorted. */
     sort: boolean;
 }
-interface RecreateOptions {
-    /** If set to true, the layers will be processed assuming metadata on the leaves */
-    createLeaves: boolean;
-    /** If set to `true`, constructs the Merkle Tree using the [Bitcoin Merkle Tree implementation](http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html). Enable it when you need to replicate Bitcoin constructed Merkle Trees. In Bitcoin Merkle Trees, single nodes are combined with themselves, and each output hash is hashed again. */
-    isBitcoinTree: boolean;
-    /** If set to `true`, the leaves will be sorted. */
-    sortPairs: boolean;
-}
 interface Leaf<T, U> {
     data: T;
     meta?: U;
@@ -53,19 +45,33 @@ export declare class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
     i: number;
     j: number;
     private done;
+    private curIsLeaf;
     constructor(leaves: Leaf<Buffer, T>[], hashAlgo: (value: any) => any, options: CreateOptions, stopi: number, stopj: number);
     next(): IteratorResult<DepthedNode<T> | null>;
+    private _createRightLeaf;
+    private _createRightNode;
+    private _moveRight;
+    private _createParent;
     [Symbol.iterator](): IterableIterator<DepthedNode<T>>;
 }
-/**
- * Class reprensenting a Merkle Tree
- * @namespace MerkleTree
- */
-export declare class MerkleTree {
+interface Options {
+    /** If set to `true`, an odd node will be duplicated and combined to make a pair to generate the layer hash. */
+    duplicateOdd: boolean;
+    /** If set to `true`, the leaves will hashed using the set hashing algorithms. */
+    hashLeaves: boolean;
+    /** If set to `true`, constructs the Merkle Tree using the [Bitcoin Merkle Tree implementation](http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html). Enable it when you need to replicate Bitcoin constructed Merkle Trees. In Bitcoin Merkle Trees, single nodes are combined with themselves, and each output hash is hashed again. */
+    isBitcoinTree: boolean;
+    /** If set to `true`, the leaves will be sorted. */
+    sortLeaves: boolean;
+    /** If set to `true`, the hashing pairs will be sorted. */
+    sortPairs: boolean;
+    /** If set to `true`, the leaves and hashing pairs will be sorted. */
+    sort: boolean;
+}
+declare class MerkleTree {
     duplicateOdd: boolean;
     hashAlgo: (value: any) => any;
     hashLeaves: boolean;
-    createLeaves: ((value: any) => any) | boolean;
     isBitcoinTree: boolean;
     leaves: any[];
     layers: any[];
@@ -94,24 +100,8 @@ export declare class MerkleTree {
      *const tree = new MerkleTree(leaves, sha256)
      *```
      */
-    constructor({ create, recreate }: {
-        create?: {
-            leaves: any;
-            hashAlgorithm: any;
-            options?: CreateOptions;
-        };
-        recreate?: {
-            layers: any;
-            options?: RecreateOptions;
-        };
-    });
+    constructor(leaves: any, hashAlgorithm: any, options?: Options);
     createHashes(nodes: any): void;
-    /**
-     * getLeavesFromLayers
-     * @desc Returns array of leaves of Merkle Tree when layers are provided as a formatted object.
-     * @return {Array}
-     */
-    getLeavesFromLayers(): void;
     /**
      * getLeaves
      * @desc Returns array of leaves of Merkle Tree.
@@ -186,7 +176,7 @@ export declare class MerkleTree {
     print(): void;
     toTreeString(): any;
     toString(): any;
-    bufferify(): (x: any) => any;
+    static bufferify(x: any): any;
     static print(tree: any): void;
 }
 declare const _default: {
