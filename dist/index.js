@@ -53,7 +53,6 @@ var MerkleFromLeaves = /** @class */ (function () {
                         this.node = this.layers[this.i][this.j];
                         this.layers[this.i].push(this.node);
                         this.j++;
-                        this._createRightNode();
                         this._createParent();
                         return {
                             value: { value: this.node, depth: this.i },
@@ -73,7 +72,6 @@ var MerkleFromLeaves = /** @class */ (function () {
                     // normal left
                     this.node = this.layers[this.i][this.j];
                     this.j++;
-                    this._createRightNode();
                     this._createParent();
                     return { value: { value: this.node, depth: this.i }, done: false };
                 }
@@ -158,9 +156,6 @@ var MerkleFromLeaves = /** @class */ (function () {
         else if (isMerkleNode(leaf)) {
             var node = leaf;
         }
-    };
-    MerkleFromLeaves.prototype._createRightNode = function () {
-        var node = this.layers[this.i][this.j];
     };
     MerkleFromLeaves.prototype._moveRight = function () {
         this.node = this.layers[this.i][this.j];

@@ -46,7 +46,6 @@ export declare class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
     constructor(leaves: Leaf<Buffer, T>[], hashAlgo: (value: any) => any, options: CreateOptions, stopi: number, stopj: number);
     next(): IteratorResult<DepthedNode<T> | null>;
     private _createRightLeaf;
-    private _createRightNode;
     private _moveRight;
     private _createParent;
     [Symbol.iterator](): IterableIterator<DepthedNode<T>>;

@@ -118,7 +118,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
             this.node = this.layers[this.i][this.j];
             this.layers[this.i].push(this.node);
             this.j++;
-            this._createRightNode();
             this._createParent();
             return {
               value: { value: this.node, depth: this.i },
@@ -136,7 +135,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
           // normal left
           this.node = this.layers[this.i][this.j];
           this.j++;
-          this._createRightNode();
           this._createParent();
           return { value: { value: this.node, depth: this.i }, done: false };
         }
@@ -221,10 +219,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
     } else if (isMerkleNode(leaf)) {
       const node = leaf;
     }
-  }
-
-  private _createRightNode() {
-    const node = this.layers[this.i][this.j];
   }
 
   private _moveRight() {
