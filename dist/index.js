@@ -16,15 +16,12 @@ function isMerkleNode(object) {
 }
 var MerkleFromLeaves = /** @class */ (function () {
     function MerkleFromLeaves(leaves, hashAlgo, options, stopi, stopj) {
-        this.layers = [];
-        this.stop = false;
         this.i = 0;
         this.j = 0;
+        this.layers = [];
         this.leaves = leaves;
         this.options = options;
         this.hashAlgo = hashAlgo;
-        this.stopi = stopi;
-        this.stopj = stopj;
     }
     MerkleFromLeaves.prototype.next = function () {
         this.curIsLeaf = this.layers[this.i]
@@ -34,21 +31,6 @@ var MerkleFromLeaves = /** @class */ (function () {
                     : true
                 : true
             : true;
-        if (this.stop) {
-            var nada = { exit: this.layers };
-            return {
-                value: { value: nada, depth: this.i },
-                done: true
-            };
-        }
-        if (this.i === this.stopi && this.j === this.stopj) {
-            var nada = { exit: this.layers };
-            this.stop = true;
-            return {
-                value: { value: nada, depth: this.i },
-                done: false
-            };
-        }
         if (this.j % 2 === 0) {
             // left
             if (!this.curIsLeaf) {

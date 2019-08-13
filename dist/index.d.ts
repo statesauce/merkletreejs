@@ -34,18 +34,15 @@ interface DepthedNode<T> {
     depth: number;
 }
 export declare class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
-    node: MerkleNode<T>;
-    leaves: Array<MerkleLeaf<T>>;
-    options: CreateOptions;
-    hashAlgo: (value: any) => any;
-    layers: Array<Array<MerkleNode<T>>>;
-    stopi: number;
-    stopj: number;
-    stop: boolean;
-    i: number;
-    j: number;
+    private node;
+    private options;
+    private hashAlgo;
+    private i;
+    private j;
     private done;
     private curIsLeaf;
+    leaves: Array<MerkleLeaf<T>>;
+    layers: Array<Array<MerkleNode<T>>>;
     constructor(leaves: Leaf<Buffer, T>[], hashAlgo: (value: any) => any, options: CreateOptions, stopi: number, stopj: number);
     next(): IteratorResult<DepthedNode<T> | null>;
     private _createRightLeaf;

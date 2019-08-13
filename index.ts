@@ -65,18 +65,15 @@ interface DepthedNode<T> {
 }
 
 export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
-  public node: MerkleNode<T>;
-  public leaves: Array<MerkleLeaf<T>>;
-  public options: CreateOptions;
-  public hashAlgo: (value: any) => any;
-  public layers: Array<Array<MerkleNode<T>>> = [];
-  public stopi: number;
-  public stopj: number;
-  public stop = false;
-  public i: number = 0;
-  public j: number = 0;
+  private node: MerkleNode<T>;
+  private options: CreateOptions;
+  private hashAlgo: (value: any) => any;
+  private i: number = 0;
+  private j: number = 0;
   private done: boolean;
   private curIsLeaf: boolean;
+  public leaves: Array<MerkleLeaf<T>>;
+  public layers: Array<Array<MerkleNode<T>>> = [];
 
   constructor(
     leaves: Leaf<Buffer, T>[],
@@ -88,8 +85,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
     this.leaves = leaves;
     this.options = options;
     this.hashAlgo = hashAlgo;
-    this.stopi = stopi;
-    this.stopj = stopj;
   }
 
   public next(): IteratorResult<DepthedNode<T> | null> {
@@ -100,21 +95,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
           : true
         : true
       : true;
-    if (this.stop) {
-      const nada = { exit: this.layers } as MerkleNode<T>;
-      return {
-        value: { value: nada, depth: this.i },
-        done: true
-      };
-    }
-    if (this.i === this.stopi && this.j === this.stopj) {
-      const nada = { exit: this.layers } as MerkleNode<T>;
-      this.stop = true;
-      return {
-        value: { value: nada, depth: this.i },
-        done: false
-      };
-    }
 
     if (this.j % 2 === 0) {
       // left
