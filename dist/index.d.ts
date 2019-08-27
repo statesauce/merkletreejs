@@ -32,6 +32,7 @@ declare type MerkleNode<T> = Node<Buffer, T>;
 interface DepthedNode<T> {
     value: MerkleNode<T>;
     depth: number;
+    index: number;
 }
 export declare class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
     private node;

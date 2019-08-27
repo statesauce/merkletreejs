@@ -62,6 +62,7 @@ function isMerkleNode<T>(object: any): object is MerkleNode<T> {
 interface DepthedNode<T> {
   value: MerkleNode<T>;
   depth: number;
+  index: number;
 }
 
 export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
@@ -86,6 +87,8 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
   }
 
   public next(): IteratorResult<DepthedNode<T> | null> {
+    const depth = this.i;
+    const index = this.j;
     this.curIsLeaf = this.layers[this.i]
       ? this.j < this.layers[this.i].length
         ? this.layers[this.i][this.j].hasOwnProperty("value")
@@ -93,7 +96,6 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
           : true
         : true
       : true;
-
     if (this.j % 2 === 0) {
       // left
       if (!this.curIsLeaf) {
@@ -105,7 +107,10 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
             const node = this.layers[this.i][this.j];
             this.node = node;
             this.done = true;
-            return { value: { value: node, depth: this.i }, done: false };
+            return {
+              value: { value: node, depth, index },
+              done: false
+            };
           }
         } else if (
           this.j + 1 === this.layers[this.i].length &&
@@ -118,7 +123,7 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
             this.j++;
             this._createParent();
             return {
-              value: { value: this.node, depth: this.i },
+              value: { value: this.node, depth, index },
               done: false
             };
           } else {
@@ -134,7 +139,10 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
           this.node = this.layers[this.i][this.j];
           this.j++;
           this._createParent();
-          return { value: { value: this.node, depth: this.i }, done: false };
+          return {
+            value: { value: this.node, depth, index },
+            done: false
+          };
         }
       } else {
         // leaves
@@ -167,7 +175,7 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
 
             this._createParent();
             return {
-              value: { value: this.node, depth: this.i },
+              value: { value: this.node, depth, index },
               done: false
             };
           } else {
@@ -199,12 +207,18 @@ export class MerkleFromLeaves<T> implements Iterator<DepthedNode<T>> {
           this.j++;
           this._createRightLeaf();
           this._createParent();
-          return { value: { value: this.node, depth: this.i }, done: false };
+          return {
+            value: { value: this.node, depth, index },
+            done: false
+          };
         }
       }
     } else {
       this._moveRight();
-      return { value: { value: this.node, depth: this.i }, done: false };
+      return {
+        value: { value: this.node, depth, index },
+        done: false
+      };
     }
   }
 

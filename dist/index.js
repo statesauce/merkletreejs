@@ -24,6 +24,8 @@ var MerkleFromLeaves = /** @class */ (function () {
         this.hashAlgo = hashAlgo;
     }
     MerkleFromLeaves.prototype.next = function () {
+        var depth = this.i;
+        var index = this.j;
         this.curIsLeaf = this.layers[this.i]
             ? this.j < this.layers[this.i].length
                 ? this.layers[this.i][this.j].hasOwnProperty("value")
@@ -43,7 +45,10 @@ var MerkleFromLeaves = /** @class */ (function () {
                         var node = this.layers[this.i][this.j];
                         this.node = node;
                         this.done = true;
-                        return { value: { value: node, depth: this.i }, done: false };
+                        return {
+                            value: { value: node, depth: depth, index: index },
+                            done: false
+                        };
                     }
                 }
                 else if (this.j + 1 === this.layers[this.i].length &&
@@ -55,7 +60,7 @@ var MerkleFromLeaves = /** @class */ (function () {
                         this.j++;
                         this._createParent();
                         return {
-                            value: { value: this.node, depth: this.i },
+                            value: { value: this.node, depth: depth, index: index },
                             done: false
                         };
                     }
@@ -73,7 +78,10 @@ var MerkleFromLeaves = /** @class */ (function () {
                     this.node = this.layers[this.i][this.j];
                     this.j++;
                     this._createParent();
-                    return { value: { value: this.node, depth: this.i }, done: false };
+                    return {
+                        value: { value: this.node, depth: depth, index: index },
+                        done: false
+                    };
                 }
             }
             else {
@@ -104,7 +112,7 @@ var MerkleFromLeaves = /** @class */ (function () {
                         this._createRightLeaf();
                         this._createParent();
                         return {
-                            value: { value: this.node, depth: this.i },
+                            value: { value: this.node, depth: depth, index: index },
                             done: false
                         };
                     }
@@ -138,13 +146,19 @@ var MerkleFromLeaves = /** @class */ (function () {
                     this.j++;
                     this._createRightLeaf();
                     this._createParent();
-                    return { value: { value: this.node, depth: this.i }, done: false };
+                    return {
+                        value: { value: this.node, depth: depth, index: index },
+                        done: false
+                    };
                 }
             }
         }
         else {
             this._moveRight();
-            return { value: { value: this.node, depth: this.i }, done: false };
+            return {
+                value: { value: this.node, depth: depth, index: index },
+                done: false
+            };
         }
     };
     MerkleFromLeaves.prototype._createRightLeaf = function () {
